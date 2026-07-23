@@ -169,3 +169,31 @@ def execute_secure_json_filter(where_clauses: List[Dict[str, Any]]) -> pd.DataFr
     """Global Functional Pipeline Gate."""
     engine = ABBDataEngine()
     return engine.safely_filter_data(where_clauses)
+
+
+# ==============================================================================
+# OPTIONAL ENTERPRISE EXTENSION: LIVE DATABASE INGESTION PATTERN
+# ==============================================================================
+# The default engine operates on an in-memory Pandas DataFrame loaded from static
+# files (abb_sales_data.xlsx) to guarantee zero SQL injection exposure. 
+#
+# To connect to live relational databases (e.g., PostgreSQL, Snowflake, Redshift),
+# you can swap out static loading by assigning the database output directly to `self.df`:
+#
+# ```python
+# import os
+# from sqlalchemy import create_engine
+#
+# def _load_from_live_database(self) -> pd.DataFrame:
+#     """
+#     Fetches records safely from a enterprise database and loads into self.df.
+#     The AST filter layer continues to operate in-memory on `self.df`.
+#     """
+#     db_url = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/abb_analytics")
+#     engine = create_engine(db_url)
+#     
+#     # Store query output directly into self.df for AST evaluation
+#     query = "SELECT * FROM sales_transactions;"
+#     return pd.read_sql(query, con=engine)
+# ```
+# ==============================================================================
