@@ -101,6 +101,16 @@ flowchart LR
 
 ```
 
+### System Architecture Breakdown
+
+The architecture follows a decoupled, multi-tier design separating user interaction, orchestration, inference, and execution:
+
+* **Presentation Layer (`app.py`)**: Built with Streamlit, providing a clean chat interface that captures user queries, maintains chat history, and dynamically renders Plotly visualizations alongside executive summaries.
+* **LangGraph Agent System (`agent_graph.py`)**: Acts as the central brain. Instead of a single static prompt, stateful graph nodes divide processing into sub-tasks (Intent Classification, Query Construction, and Insight Generation).
+* **Groq LPU Inference Engine**: Connects to `llama-3.3-70b-versatile` over ultra-low latency LPU infrastructure for near-instant expression generation and summary synthesis.
+* **Security & Execution Engine (`database_engine.py`)**: Intercepts generated query payloads before database contact. The custom AST parser inspects syntax nodes to prevent arbitrary code execution, then safely executes validated expressions via vectorized Pandas / SQLAlchemy pipelines.
+* **Data Layer (`abb_sales_data.xlsx`)**: Provides structured industrial enterprise analytics data, fully isolated from direct raw user queries.
+
 ---
 
 ## 🔄 End-to-End Workflow
@@ -109,11 +119,11 @@ flowchart LR
 sequenceDiagram
     autonumber
     actor User
-    participant UI as Streamlit UI (app.py)
-    participant Graph as Agent Graph (agent_graph.py)
-    participant Groq as Groq LPU
-    participant AST as AST Inspector (database_engine.py)
-    participant Data as Data Engine
+    participant UI as "Streamlit UI (app.py)"
+    participant Graph as "Agent Graph (agent_graph.py)"
+    participant Groq as "Groq LPU"
+    participant AST as "AST Inspector (database_engine.py)"
+    participant Data as "Data Engine"
 
     User->>UI: Input natural language query
     UI->>Graph: Send query & schema context
@@ -131,6 +141,20 @@ sequenceDiagram
     end
 
 ```
+
+### Step-by-Step Execution Sequence
+
+1. **Query Submission**: The user submits an everyday query (e.g., *"Show me revenue by business line for 2024"*).
+2. **Context Enrichment**: `app.py` passes the query along with minimal table schema metadata to `agent_graph.py`.
+3. **LLM Translation**: The Agent Supervisor prompts Groq LPU to return a strictly typed JSON/AST expression tree rather than a raw SQL string.
+4. **AST Whitelist Inspection**: `database_engine.py` parses the expression tree. It checks every node against allowed arithmetic and filter operators (`Compare`, `Attribute`, `Num`, `Str`, `BinOp`).
+5. **Branching & Safety Verification**:
+* **If malicious or unapproved code is detected**: Execution halts immediately, and a security exception is safely raised to the UI without touching the database.
+* **If AST is fully validated**: The filter is applied safely to the dataset using vectorized Pandas operations.
+
+
+6. **Insight & Chart Generation**: The filtered dataset is mapped to appropriate Plotly chart types while the LLM generates a bulleted executive summary.
+7. **UI Presentation**: The final response renders seamlessly in Streamlit with interactive charts, summary metrics, and inspectable data tables.
 
 ---
 
@@ -154,6 +178,15 @@ flowchart TD
 
 ```
 
+### Agent Roles & State Graph Responsibility
+
+The system utilizes **LangGraph** to build a cyclic, state-driven workflow where each node specializes in a single task:
+
+* **Node 1: Intent Node**: Parses incoming prompts to identify key business parameters—target dimensions (e.g., `Business Line`), numerical metrics (e.g., `Revenue`), date ranges (e.g., `Year == 2024`), and desired chart types.
+* **Node 2: Query Security Node**: Translates extracted parameters into an AST-compatible logical condition structure. It acts as an isolation barrier between LLM text generation and system execution.
+* **Node 3: Database Engine Node**: Accepts only verified AST expressions. Executes in-memory vectorized transformations on the dataset to produce aggregate figures and filtered dataframes.
+* **Node 4: Insight Synthesis Node**: Consumes raw calculated outputs from Node 3 and crafts concise business executive summaries highlighting trends, outliers, and key metrics.
+
 ---
 
 ## 🔒 Why AST Security Over Raw SQL?
@@ -176,6 +209,22 @@ flowchart TD
     end
 
 ```
+
+### Security Comparison Analysis
+
+| Risk / Feature | Traditional Text-to-SQL / Dynamic `exec()` | AST-Secured Execution Model (Our Approach) |
+| --- | --- | --- |
+| **SQL Injection** | **High Risk**: Malicious prompts can inject `DROP TABLE`, `UNION SELECT`, or stacked queries. | **Zero Risk**: No raw SQL strings are generated or sent directly to the database. |
+| **Remote Code Execution (RCE)** | **High Risk**: Dynamic code evaluate engines like `exec()` or `eval()` can run host commands. | **Zero Risk**: AST inspector rejects module imports, function calls, and unauthorized tokens. |
+| **Data Corruption** | **Possible**: Unchecked write/alter queries can mutate persistent storage. | **Impossible**: Read-only vectorized execution sandbox over structured data instances. |
+| **Determinism & Parsing** | **Low**: LLM text generation can omit quotes, misspell SQL syntax, or generate invalid dialects. | **High**: Evaluates strictly against standard Abstract Syntax Tree structures with clear node types. |
+
+#### How the AST Whitelist Works
+
+When an expression is parsed into Python's `ast.NodeVisitor`, every single syntax node is validated:
+
+* **Allowed Nodes**: `ast.Expression`, `ast.Compare`, `ast.Name`, `ast.Load`, `ast.Constant`, `ast.Eq`, `ast.Gt`, `ast.Lt`, `ast.And`, `ast.Or`.
+* **Disallowed Nodes**: `ast.Call` (prevents function invocation), `ast.Import` (prevents loading system modules), `ast.Attribute` access to private methods (`__subclasses__`, `__globals__`).
 
 ---
 
