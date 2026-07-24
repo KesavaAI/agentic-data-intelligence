@@ -373,9 +373,12 @@ Distributed under the **MIT License**. See `LICENSE` for details.
 
 ## 📬 Contact & Support
 
-* **Live Demo**: [agentic-data-intelligence.streamlit.app](https://agentic-data-intelligence.streamlit.app)
-* **GitHub**: [github.com/KesavaAI/agentic-data-intelligence](https://www.google.com/search?q=https://github.com/KesavaAI/agentic-data-intelligence)
-
+* **Live Demo**: [🛡️ Agentic-Data-Intelligence](https://agentic-data-intelligence.streamlit.app)
+* **GitHub**: [KesavaAI](https://github.com/KesavaAI)
+* **Linkedin**: [Linkedin](https://www.linkedin.com/in/chenna00)
+*  **Credly**: [Credly](https://www.credly.com/users/chenna00)
+*  **Portfolio**: [kesava-reddy.netlify.app](https://kesava-reddy.netlify.app)
+*  **Mail**: [kesavac913@gmail.com](https://www.credly.com/users/chenna00) 
 ```
 
 ```
